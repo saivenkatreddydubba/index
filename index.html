@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCI Research Platform: User Experience Testing</title>
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --surface: #131c2e;
+            --surface-hover: #1c2842;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border: #1e293b;
+        }
+
+        * { box-sizing: border-box; transition: all 0.2s ease; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Screen Routing Constraints */
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Shared Dashboard Layout Wrapper */
+        .container { width: 100%; max-width: 900px; }
+
+        /* Configuration Topbar */
+        .config-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 12px 24px;
+            border-radius: 30px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        select {
+            background: var(--bg-main);
+            color: white;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* SCREEN 1: HUB DESIGN */
+        .hub-header { text-align: center; margin-bottom: 40px; }
+        .hub-header h1 { font-size: 2.2rem; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        
+        .premium-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .premium-card:hover { 
+            transform: translateY(-4px); 
+            border-color: #4f46e5;
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.1);
+        }
+        .premium-card h3 { margin: 0 0 12px 0; font-size: 1.3rem; font-weight: 600; }
+        .premium-card p { margin: 0; color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; }
+
+        /* Kinetic Continuity Animation Class rules */
+        .kinetic-expanding {
+            transition: all 5.5s cubic-bezier(0.25, 1, 0.5, 1) !important;
+            transform: scale(1.02);
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 50px var(--primary-glow) !important;
+        }
+        .tether-line {
+            position: absolute;
+            bottom: 0; left: 0; width: 0%; height: 4px;
+            background: linear-gradient(90deg, var(--primary), #a5b4fc);
+        }
+        .kinetic-expanding .tether-line { width: 100%; transition: width 5.5s linear !important; }
+
+        /* Passive Loading Spinner Overlay Container */
+        .spinner-screen {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(11, 15, 25, 0.85); backdrop-filter: blur(8px);
+            z-index: 999; justify-content: center; align-items: center;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.05); border-top: 4px solid var(--primary);
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* SCREEN 2: METRIC DASHBOARD DESIGN */
+        .dashboard-layout {
+            display: grid; grid-template-columns: 1fr 320px; gap: 30px; width: 100%; max-width: 1200px;
+        }
+        .main-workspace { display: flex; flex-direction: column; gap: 20px; }
+        
+        .chart-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 24px; min-height: 260px;
+            position: relative; overflow: hidden;
+        }
+        /* Custom pure CSS animated bar chart visualizer */
+        .bar-chart-mock {
+            display: flex; align-items: flex-end; gap: 16px; height: 160px; margin-top: 24px;
+        }
+        .bar {
+            flex: 1; background: linear-gradient(180deg, var(--primary), #4f46e5);
+            border-radius: 4px 4px 0 0; height: 0%;
+            animation: growUp 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes growUp { to { height: var(--h); } }
+
+        .metrics-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .mini-card { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: 12px; }
+        .mini-card h4 { margin: 0 0 8px 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
+        .mini-card p { margin: 0; font-size: 1.8rem; font-weight: bold; color: white; }
+
+        /* SIDEBAR SURVEY FORM */
+        .survey-sidebar {
+            background: linear-gradient(145deg, #16223f, var(--surface));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px; padding: 24px; height: fit-content;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .survey-sidebar h3 { margin: 0 0 6px 0; color: white; }
+        .survey-sidebar p { margin: 0 0 20px 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+        
+        .survey-field { margin-bottom: 20px; }
+        .survey-field label { display: block; font-size: 0.85rem; margin-bottom: 8px; color: var(--text-main); }
+        
+        input[type="range"] {
+            width: 100%; margin-bottom: 6px; accent-color: var(--primary); cursor: pointer;
+        }
+        .range-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+        
+        .submit-btn {
+            width: 100%; background: var(--primary); color: white; border: none;
+            padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer;
+        }
+        .submit-btn:hover { background: #4f46e5; transform: scale(1.01); }
+    </style>
+</head>
+<body>
+
+    <!-- CONTROL HUB SCREEN -->
+    <div id="screen-hub" class="screen active">
+        <div class="config-panel">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Testing Module Control:</span>
+            <select id="condition-select">
+                <option value="Static">Condition 1: Static Layout (Simulated Freeze)</option>
+                <option value="Passive">Condition 2: Passive Masking (Centered Spinner)</option>
+                <option value="Kinetic">Condition 3: Kinetic Continuity (Morphing & Staggered)</option>
+            </select>
+        </div>
+
+        <div class="container">
+            <div class="hub-header">
+                <h1>Enterprise Workspace Central</h1>
+                <p style="color: var(--text-muted);">Select an information silo below to initialize cross-network compilation modules.</p>
+            </div>
+            
+            <div class="hub-grid">
+                <div id="target-trigger-card" class="premium-card" onclick="startNavigationSequence()">
+                    <h3>Cloud Analytics Dashboard</h3>
+                    <p>Compile database transaction histories, cluster health matrices, and processing efficiency ratios.</p>
+                    <div class="tether-line"></div>
+                </div>
+                <div class="premium-card" style="opacity: 0.4; cursor: not-allowed;">
+                    <h3>System Architecture Maps</h3>
+                    <p>Immutable ledger arrays, edge network mappings, and verification sequence routes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PASSIVE SPINNER CONTAINER OVERLAY -->
+    <div id="spinner-overlay" class="spinner-screen">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- REAL DETACHED DASHBOARD SCREEN -->
+    <div id="screen-dashboard" class="screen">
+        <div class="dashboard-layout">
+            
+            <!-- Real application space -->
+            <div class="main-workspace">
+                <div class="chart-card">
+                    <h3 style="margin:0;">System Network Throughout</h3>
+                    <p style="margin:4px 0 0 0; font-size:0.85rem; color:var(--text-muted);">Live ingestion rates tracked across distributed instances</p>
+                    <div class="bar-chart-mock">
+                        <div class="bar" style="--h: 40%"></div>
+                        <div class="bar" style="--h: 65%"></div>
+                        <div class="bar" style="--h: 50%"></div>
+                        <div class="bar" style="--h: 85%"></div>
+                        <div class="bar" style="--h: 95%"></div>
+                        <div class="bar" style="--h: 70%"></div>
+                        <div class="bar" style="--h: 80%"></div>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="mini-card">
+                        <h4>Cluster Node Health</h4>
+                        <p>99.98%</p>
+                    </div>
+                    <div class="mini-card">
+                        <h4>Active Database Throttles</h4>
+                        <p>0ms</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empirical Testing Metrics Panel Embedded into Layout -->
+            <div class="survey-sidebar">
+                <h3>Telemetry Assessment</h3>
+                <p>The network simulation has concluded. Please log your cognitive feedback based entirely on the navigation experience you just encountered.</p>
+                
+                <form id="research-form" onsubmit="submitTelemetry(event)">
+                    <div class="survey-field">
+                        <label>1. Estimated Loading Duration (Seconds)</label>
+                        <input type="range" id="field-perceived" min="1" max="12" step="0.1" value="4.5" oninput="document.getElementById('val-p').innerText = this.value + 's'">
+                        <div class="range-labels"><span>1s</span><strong id="val-p" style="color:var(--primary);">4.5s</strong><span>12s</span></div>
+                    </div>
+
+                    <div class="survey-field">
+                        <label>2. Mental Frustration Scale (NASA-TLX)</label>
+                        <input type="range" id="field-frustration" min="1" max="7" step="1" value="4" oninput="document.getElementById('val-f').innerText = this.value">
+                        <div class="range-labels"><span>1 (Calm)</span><strong id="val-f" style="color:var(--primary);">4</strong><span>7 (Agitated)</span></div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Submit Research Payload</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    let clickCount = 0;
+    let startTime = 0;
+    let isProcessing = false;
+    const METRIC_DELAY = 5500; // Hardcoded to 5.5 seconds to fully capture human impatience profiles
+
+    let databaseLog = JSON.parse(localStorage.getItem('hci_premium_research')) || [];
+
+    function startNavigationSequence() {
+        if (isProcessing) {
+            clickCount++;
+            return;
+        }
+
+        isProcessing = true;
+        clickCount = 1;
+        startTime = performance.now();
+
+        const condition = document.getElementById('condition-select').value;
+        const triggerCard = document.getElementById('target-trigger-card');
+        const spinnerOverlay = document.getElementById('spinner-overlay');
+
+        // Apply visual logic variations
+        if (condition === "Static") {
+            document.body.style.cursor = "wait";
+            // Stays frozen—gives zero visual changes
+        } else if (condition === "Passive") {
+            spinnerOverlay.style.display = "flex";
+        } else if (condition === "Kinetic") {
+            triggerCard.classList.add('kinetic-expanding');
+        }
+
+        // Exact 5.5-second clock window
+        setTimeout(() => {
+            const endTime = performance.now();
+            const absoluteElapsedTime = endTime - startTime;
+
+            // Reset home states clean
+            document.body.style.cursor = "default";
+            spinnerOverlay.style.display = "none";
+            triggerCard.classList.remove('kinetic-expanding');
+
+            // Route user cleanly to the dashboard page view
+            document.getElementById('screen-hub').classList.remove('active');
+            document.getElementById('screen-dashboard').classList.add('active');
+
+            // Store hidden temporal details globally to lock into form output on save
+            window.activeTestMeta = {
+                condition: condition,
+                actualDelayMs: Math.round(absoluteElapsedTime),
+                totalClicksDuringDelay: clickCount
+            };
+
+            isProcessing = false;
+        }, METRIC_DELAY);
+    }
+
+    function submitTelemetry(event) {
+        event.preventDefault();
+
+        const perceivedSec = parseFloat(document.getElementById('field-perceived').value);
+        const frustrationRating = parseInt(document.getElementById('field-frustration').value);
+        
+        const completeSessionRecord = {
+            experimentalCondition: window.activeTestMeta.condition,
+            systemAbsoluteDelayMs: window.activeTestMeta.actualDelayMs,
+            totalUserInputsLogged: window.activeTestMeta.totalClicksDuringDelay,
+            rageClickConditionMet: window.activeTestMeta.totalClicksDuringDelay > 1,
+            userPerceivedDelayMs: perceivedSec * 1000,
+            perceivedSkewErrorMs: (perceivedSec * 1000) - window.activeTestMeta.actualDelayMs,
+            nasaTlxFrustrationScore: frustrationRating,
+            recordedTimestamp: new Date().toISOString()
+        };
+
+        databaseLog.push(completeSessionRecord);
+        localStorage.setItem('hci_premium_research', JSON.stringify(databaseLog));
+
+        alert("Telemetry successfully captured! Generating empirical data download file now.");
+        
+        // Export file automation sequence
+        const fileContent = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(databaseLog, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", fileContent);
+        downloadAnchor.setAttribute("download", "empirical_hci_dataset.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+
+        // Router link back home to rerun tests safely
+        document.getElementById('screen-dashboard').classList.remove('active');
+        document.getElementById('screen-hub').classList.add('active');
+        
+        // Reset the form values back to baseline defaults
+        document.getElementById('research-form').reset();
+        document.getElementById('val-p').innerText = "4.5s";
+        document.getElementById('val-f').innerText = "4";
+    }
+</script>
+</body>
+</html>
